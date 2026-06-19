@@ -16,7 +16,7 @@ interface Props {
 
 export function Reel({ symbols, isSpinning, quickSpin, winRows, scatterRows }: Props) {
   return (
-    <div className="relative w-20 h-56 overflow-hidden rounded-lg bg-gray-900 border border-gray-700">
+    <div className="relative w-14 h-[168px] sm:w-16 sm:h-48 md:w-20 md:h-56 overflow-hidden rounded-lg bg-gray-900 border border-gray-700">
       {/* Gradiente top/bottom para efecto de profundidad */}
       <div
         className="absolute inset-0 z-10 pointer-events-none"

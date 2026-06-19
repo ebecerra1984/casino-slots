@@ -100,7 +100,14 @@ export function SlotMachine() {
 
   return (
     <>
-      <div className="flex flex-col items-center gap-1 p-4 rounded-2xl bg-gray-950 border border-gray-800 shadow-2xl w-full max-w-xl">
+      <div className="flex flex-col items-center gap-1
+                      w-full sm:max-w-xl
+                      p-2 pt-3 sm:p-4
+                      rounded-none sm:rounded-2xl
+                      bg-gray-950
+                      border-0 sm:border sm:border-gray-800
+                      shadow-none sm:shadow-2xl
+                      min-h-svh sm:min-h-0">
 
         {/* Header */}
         <div className="flex items-center justify-between w-full">
@@ -128,10 +135,13 @@ export function SlotMachine() {
         </div>
 
         {/* Grilla de rodillos */}
-        <div className="flex items-center gap-3">
-          <PaylineIndicator activeLines={lines} winLineIds={winLineIds} />
+        <div className="flex items-center gap-1 sm:gap-3 w-full justify-center">
+          {/* Indicador de líneas — oculto en mobile, visible en sm+ */}
+          <div className="hidden sm:block">
+            <PaylineIndicator activeLines={lines} winLineIds={winLineIds} />
+          </div>
 
-          <div className="relative flex gap-2">
+          <div className="relative flex gap-1 sm:gap-2">
             {Array.from({ length: COLS }, (_, col) => (
               <Reel
                 key={col}
@@ -148,7 +158,25 @@ export function SlotMachine() {
             />
           </div>
 
-          <div className="w-8" />
+          {/* Spacer de balance — solo en sm+ */}
+          <div className="hidden sm:block w-8" />
+        </div>
+
+        {/* Indicador de líneas compacto — solo mobile */}
+        <div className="flex sm:hidden items-center justify-center gap-4 w-full py-0.5">
+          {[1, 2, 3, 4, 5].map(id => {
+            const colors: Record<number, string> = { 1:'#facc15', 2:'#34d399', 3:'#f472b6', 4:'#60a5fa', 5:'#fb923c' }
+            const won = winLineIds.has(id)
+            return (
+              <span
+                key={id}
+                style={{ color: colors[id] }}
+                className={['text-[11px] font-black', won ? 'animate-pulse' : 'opacity-40'].join(' ')}
+              >
+                {id}
+              </span>
+            )
+          })}
         </div>
 
         {/* Resultado — sin altura fija para que colapse cuando no hay nada */}

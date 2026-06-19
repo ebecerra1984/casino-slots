@@ -24,7 +24,7 @@ export function SymbolCell({ symbol, isWin, isScatter }: Props) {
     <div
       className={[
         'flex items-center justify-center w-full h-full select-none',
-        'text-4xl transition-all duration-150',
+        'text-3xl sm:text-4xl transition-all duration-150',
         isWin     ? 'symbol-win scale-110' : '',
         isScatter ? 'drop-shadow-[0_0_8px_rgba(251,191,36,0.9)]' : '',
       ].join(' ')}

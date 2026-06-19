@@ -15,8 +15,16 @@ body {
   width: 100%;
   min-height: 100svh;
   display: flex;
-  align-items: center;
+  /* mobile: top-aligned so nothing gets clipped */
+  align-items: flex-start;
   justify-content: center;
+}
+
+@media (min-width: 640px) {
+  #root {
+    align-items: center;
+    padding: 1rem;
+  }
 }
 
 @keyframes reel-spin {

@@ -20,9 +20,9 @@ export function WinDisplay({ result }: Props) {
 
       <p className={[
         'font-black tracking-tight',
-        isJackpot ? 'text-5xl text-yellow-300' :
-        isBig     ? 'text-4xl text-yellow-400' :
-                    'text-3xl text-white',
+        isJackpot ? 'text-3xl sm:text-5xl text-yellow-300' :
+        isBig     ? 'text-2xl sm:text-4xl text-yellow-400' :
+                    'text-xl sm:text-3xl text-white',
       ].join(' ')}>
         {isJackpot ? '🏆 JACKPOT ' : isBig ? '🎉 BIG WIN ' : '✨ '}
         +{result.total_prize.toFixed(2)}

@@ -14,10 +14,10 @@ casino-slots/
 │   ├── main.py       Entry point FastAPI + CORS
 │   ├── simulate_rtp.py  Script de calibración RTP (CLI)
 │   └── requirements.txt
-└── frontend/         React 18 + Vite + Tailwind CSS v4
+└── frontend/         React 18 + Vite + Tailwind CSS v4 · lucide-react
     └── src/
         ├── components/   SlotMachine, Reel, Controls, PaylineOverlay, PaytableModal…
-        ├── hooks/        useSlotMachine.ts — toda la lógica de estado
+        ├── hooks/        useSlotMachine.ts, useAudio.ts
         └── types.ts
 ```
 
@@ -39,10 +39,11 @@ yarn dev
 ## Decisiones técnicas importantes
 
 ### Modelo de apuesta
-- `bet` = apuesta **por línea** (no total)
-- Costo por spin = `bet × lines` (actualmente 5 líneas fijas)
+- `bet` = apuesta **por línea** (no total); las opciones [1,3,5,10,25] son per-line
+- Costo por spin = `bet × lines` (actualmente 5 líneas fijas) → se descuenta del balance
 - Premio por línea = `bet × multiplier`
 - Premio scatter = `SCATTER_PAYS[n] × (bet × lines)`
+- La UI muestra "Apuesta total" = `bet × 5` para que el jugador vea el costo real
 
 ### Grilla y paylines
 - 5 rodillos × 3 filas
@@ -80,6 +81,23 @@ yarn dev
 En los timers de `useSlotMachine.ts`, se captura `pendingResult.current` como variable
 local ANTES de llamar `setState`, porque el updater corre en microtask posterior.
 
+### Audio (Web Audio API — sin archivos externos)
+- Todo sintetizado programáticamente en `useAudio.ts`
+- `AudioContext` se inicializa diferido al primer gesto del usuario (política de autoplay)
+- Sonido de rodillos: buffer de 1 tick (impulso+decay × exp(-200t), 66ms) en loop
+  - `playbackRate=1.0` normal, `1.8` quick-spin
+- `playReelStop()`: dos capas — cuerpo grave (lowpass 220Hz) + snap agudo (bandpass 1200Hz)
+- Música de fondo: 16 notas C/F major, scheduler con `setTimeout` de 30ms
+- `masterRef` (GainNode) controla mute global — no desconectar, solo `gain.value=0`
+
+### Diseño responsive (mobile-first)
+- Breakpoints Tailwind: base=mobile, `sm:`=640px, `md:`=768px
+- Reel: `w-14 h-[168px]` → `sm:w-16 sm:h-48` → `md:w-20 md:h-56`
+- Container: `rounded-none sm:rounded-2xl`, sin borde lateral en mobile, `min-h-svh sm:min-h-0`
+- PaylineIndicator: `hidden sm:block`; en mobile se usa fila compacta de números bajo los reels
+- WinDisplay: sin altura fija, renderiza condicionalmente (no reserva espacio cuando no hay ganancia)
+- `#root`: `align-items: flex-start` en mobile, `center` en `sm:`
+
 ## Variables clave a no cambiar sin recalibrar RTP
 
 | Archivo | Constante | Valor actual | Efecto si se cambia |
@@ -94,5 +112,4 @@ local ANTES de llamar `setState`, porque el updater corre en microtask posterior
 Frontend: **yarn** (no npm). Siempre `yarn add`, `yarn dev`, `yarn build`.
 
 ## Pendientes / ideas anotadas
-- Música de fondo + efectos de sonido (spin, win, scatter, jackpot)
 - Build de producción + dockerización para despliegue del cliente

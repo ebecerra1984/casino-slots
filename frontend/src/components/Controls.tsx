@@ -32,26 +32,26 @@ export function Controls({
       {/* ── Stats ─────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between w-full px-1">
         <div className="text-center">
-          <p className="text-gray-500 uppercase tracking-widest text-[10px]">Balance</p>
-          <p className="text-white font-bold text-base tabular-nums">{balance.toFixed(2)}</p>
+          <p className="text-gray-500 uppercase tracking-widest text-[9px] sm:text-[10px]">Balance</p>
+          <p className="text-white font-bold text-sm sm:text-base tabular-nums">{balance.toFixed(2)}</p>
         </div>
 
         {freeSpinsLeft > 0 && (
-          <div className="text-center px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30">
-            <p className="text-amber-400 uppercase tracking-widest text-[10px]">Free Spins</p>
-            <p className="text-amber-300 font-black text-base">{freeSpinsLeft}</p>
+          <div className="text-center px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg bg-amber-500/10 border border-amber-500/30">
+            <p className="text-amber-400 uppercase tracking-widest text-[9px] sm:text-[10px]">Free Spins</p>
+            <p className="text-amber-300 font-black text-sm sm:text-base">{freeSpinsLeft}</p>
           </div>
         )}
 
         <div className="text-center">
-          <p className="text-gray-500 uppercase tracking-widest text-[10px]">Apuesta total</p>
-          <p className="text-white font-bold text-base tabular-nums">{totalBet.toFixed(2)}</p>
+          <p className="text-gray-500 uppercase tracking-widest text-[9px] sm:text-[10px]">Apuesta total</p>
+          <p className="text-white font-bold text-sm sm:text-base tabular-nums">{totalBet.toFixed(2)}</p>
         </div>
       </div>
 
       {/* ── Fichas de apuesta ─────────────────────────────────────────── */}
-      <div className="flex items-center gap-2">
-        <CircleDollarSign className="w-4 h-4 text-gray-600 flex-shrink-0" />
+      <div className="flex items-center gap-1.5 sm:gap-2">
+        <CircleDollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600 flex-shrink-0" />
         {BET_OPTIONS.map(b => (
           <button
             key={b}
@@ -59,7 +59,7 @@ export function Controls({
             disabled={spinning || isAutoSpinning}
             title={`Apostar ${b}`}
             className={[
-              'w-9 h-9 rounded-full text-xs font-black border-2 transition-all duration-150',
+              'w-8 h-8 sm:w-9 sm:h-9 rounded-full text-xs font-black border-2 transition-all duration-150',
               bet === b
                 ? 'bg-yellow-500 border-yellow-300 text-gray-900 shadow-[0_0_10px_rgba(234,179,8,0.55)] scale-110'
                 : 'bg-gray-800/80 border-gray-600 text-gray-400 hover:border-yellow-600/60 hover:text-yellow-400',
@@ -72,21 +72,21 @@ export function Controls({
       </div>
 
       {/* ── Fila principal: [Auto] ─── [SPIN] ─── [Quick] ─────────────── */}
-      <div className="flex items-center justify-center gap-5">
+      <div className="flex items-center justify-center gap-3 sm:gap-5">
 
         {/* AUTO SPIN ─ izquierda */}
-        <div className="flex flex-col items-center gap-1.5 w-20">
+        <div className="flex flex-col items-center gap-1 w-16 sm:w-20">
           {isAutoSpinning ? (
             <>
               <button
                 onClick={onStopAutoSpin}
-                className="w-14 h-14 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center transition-all active:scale-95 shadow-[0_0_14px_rgba(220,38,38,0.45)]"
+                className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center transition-all active:scale-95 shadow-[0_0_14px_rgba(220,38,38,0.45)]"
                 title="Detener auto-giro"
               >
-                <Square className="w-6 h-6 text-white fill-white" />
+                <Square className="w-5 h-5 sm:w-6 sm:h-6 text-white fill-white" />
               </button>
-              <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider text-center">
-                {autoSpinsLeft} restantes
+              <span className="text-gray-400 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-center">
+                {autoSpinsLeft} left
               </span>
             </>
           ) : (
@@ -97,9 +97,9 @@ export function Controls({
                     key={n}
                     onClick={() => onStartAutoSpin(n)}
                     disabled={spinning || !canSpin}
-                    title={`Auto-giro ×${n}`}
+                    title={`Auto ×${n}`}
                     className={[
-                      'w-9 h-7 rounded text-[11px] font-bold transition-all',
+                      'w-7 h-6 sm:w-9 sm:h-7 rounded text-[10px] sm:text-[11px] font-bold transition-all',
                       'bg-gray-800 border border-gray-700 text-gray-400',
                       'hover:border-indigo-500 hover:text-indigo-300',
                       spinning || !canSpin ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer active:scale-95',
@@ -109,7 +109,7 @@ export function Controls({
                   </button>
                 ))}
               </div>
-              <span className="text-gray-600 text-[10px] font-bold uppercase tracking-widest">
+              <span className="text-gray-600 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest">
                 Auto
               </span>
             </>
@@ -123,7 +123,7 @@ export function Controls({
             disabled={!canSpin || isAutoSpinning}
             title={freeSpinsLeft > 0 ? 'Tirada gratis' : 'Girar'}
             className={[
-              'w-24 h-24 rounded-full flex flex-col items-center justify-center gap-1',
+              'w-20 h-20 sm:w-24 sm:h-24 rounded-full flex flex-col items-center justify-center gap-1',
               'transition-all duration-150 active:scale-95 select-none',
               canSpin && !isAutoSpinning
                 ? [
@@ -135,10 +135,10 @@ export function Controls({
             ].join(' ')}
           >
             {spinning ? (
-              <RefreshCw className="w-10 h-10 animate-spin" strokeWidth={2.5} />
+              <RefreshCw className="w-8 h-8 sm:w-10 sm:h-10 animate-spin" strokeWidth={2.5} />
             ) : (
               <>
-                <RotateCcw className="w-9 h-9" strokeWidth={2.5} />
+                <RotateCcw className="w-7 h-7 sm:w-9 sm:h-9" strokeWidth={2.5} />
                 {freeSpinsLeft > 0 && (
                   <span className="text-[9px] font-black uppercase tracking-widest leading-none">
                     Gratis
@@ -148,28 +148,28 @@ export function Controls({
             )}
           </button>
           {!spinning && !isAutoSpinning && (
-            <span className="text-gray-600 text-[10px] uppercase tracking-[0.2em] font-semibold">
+            <span className="text-gray-600 text-[9px] sm:text-[10px] uppercase tracking-[0.2em] font-semibold">
               Girar
             </span>
           )}
         </div>
 
         {/* QUICK SPIN ─ derecha */}
-        <div className="flex flex-col items-center gap-1.5 w-20 items-end">
+        <div className="flex flex-col items-center gap-1 w-16 sm:w-20">
           <button
             onClick={onToggleQuickSpin}
             title={quickSpin ? 'Velocidad normal' : 'Giro rápido'}
             className={[
-              'w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95',
+              'w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all active:scale-95',
               quickSpin
                 ? 'bg-cyan-500 text-gray-900 shadow-[0_0_16px_rgba(6,182,212,0.6)] border-2 border-cyan-300'
                 : 'bg-gray-800 border-2 border-gray-700 text-gray-400 hover:border-cyan-700 hover:text-cyan-400',
             ].join(' ')}
           >
-            <Zap className={['w-6 h-6', quickSpin ? 'fill-gray-900' : ''].join(' ')} />
+            <Zap className={['w-5 h-5 sm:w-6 sm:h-6', quickSpin ? 'fill-gray-900' : ''].join(' ')} />
           </button>
           <span className={[
-            'text-[10px] font-bold uppercase tracking-wider',
+            'text-[9px] sm:text-[10px] font-bold uppercase tracking-wider',
             quickSpin ? 'text-cyan-400' : 'text-gray-600',
           ].join(' ')}>
             {quickSpin ? 'Rápido' : 'Normal'}

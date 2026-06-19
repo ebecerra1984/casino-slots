@@ -22,7 +22,7 @@ interface Props {
 
 export function PaylineIndicator({ activeLines, winLineIds }: Props) {
   return (
-    <div className="flex flex-col justify-around h-56 px-1 gap-1">
+    <div className="flex flex-col justify-around h-[168px] sm:h-48 md:h-56 px-1 gap-1">
       {[1, 2, 3, 4, 5].map(lineId => {
         const color = LINE_COLORS[lineId]
         const active = lineId <= activeLines
