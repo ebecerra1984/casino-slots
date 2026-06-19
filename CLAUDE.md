@@ -98,6 +98,35 @@ local ANTES de llamar `setState`, porque el updater corre en microtask posterior
 - WinDisplay: sin altura fija, renderiza condicionalmente (no reserva espacio cuando no hay ganancia)
 - `#root`: `align-items: flex-start` en mobile, `center` en `sm:`
 
+### Trampas CSS críticas (Tailwind v4)
+
+**1. No usar reglas `*` sin layer en `index.css`**
+Las reglas sin `@layer` ganan sobre CUALQUIER regla con `@layer` (incluyendo
+`@layer utilities`) sin importar la especificidad. Un `* { padding: 0 }` unlayered
+zeroa silenciosamente toda utilidad de padding de Tailwind (`p-*`, `px-*`, `py-*`, etc.).
+Tailwind ya provee este reset en `@layer base` — no duplicarlo fuera de capas.
+
+**2. `className` multilinea en JSX puede fallar el scanner**
+Un string JSX con saltos de línea literales (`className="foo\n  bar"`) puede hacer que
+Tailwind v4 no detecte algunas clases. Siempre usar el patrón array:
+```tsx
+className={['clase-a', 'clase-b', 'sm:clase-c'].join(' ')}
+```
+
+### Testing visual con Playwright
+
+```bash
+# Setup (una sola vez)
+mkdir -p /tmp/pw-test && cd /tmp/pw-test && npm init -y
+npm install playwright@1.61.0 && npx playwright install chromium
+
+# Script de screenshot — ver /tmp/pw-test/shot.mjs
+# Requiere dev server en http://localhost:5173
+cd /tmp/pw-test && node shot.mjs
+# Output: /tmp/pw-shots/*.png
+```
+Para verificar padding: medir con `page.evaluate(() => getComputedStyle(el).paddingLeft)`.
+
 ## Variables clave a no cambiar sin recalibrar RTP
 
 | Archivo | Constante | Valor actual | Efecto si se cambia |
