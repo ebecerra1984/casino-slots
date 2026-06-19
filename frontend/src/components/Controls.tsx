@@ -27,7 +27,7 @@ export function Controls({
   const canSpin        = !spinning && (balance >= totalBet || freeSpinsLeft > 0)
 
   return (
-    <div className="flex flex-col items-center gap-3 w-full pt-2">
+    <div className="flex flex-col items-center gap-2 w-full">
 
       {/* ── Stats ─────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between w-full px-1">

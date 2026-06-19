@@ -103,7 +103,7 @@ export function SlotMachine() {
       <div className="flex flex-col items-center gap-1 p-4 rounded-2xl bg-gray-950 border border-gray-800 shadow-2xl w-full max-w-xl">
 
         {/* Header */}
-        <div className="flex items-center justify-between w-full mb-1">
+        <div className="flex items-center justify-between w-full">
           <button
             onClick={audio.toggleMute}
             title={audio.muted ? 'Activar sonido' : 'Silenciar'}
@@ -151,14 +151,14 @@ export function SlotMachine() {
           <div className="w-8" />
         </div>
 
-        {/* Resultado */}
-        <div className="h-12 flex items-center justify-center">
-          {error ? (
-            <p className="text-red-400 text-sm">{error}</p>
-          ) : (
-            <WinDisplay result={lastResult} />
-          )}
-        </div>
+        {/* Resultado — sin altura fija para que colapse cuando no hay nada */}
+        {(error || lastResult?.is_win) && (
+          <div className="flex items-center justify-center w-full">
+            {error
+              ? <p className="text-red-400 text-sm py-1">{error}</p>
+              : <WinDisplay result={lastResult} />}
+          </div>
+        )}
 
         {/* Controles */}
         <Controls
