@@ -100,14 +100,16 @@ export function SlotMachine() {
 
   return (
     <>
-      <div className="flex flex-col items-center gap-1
-                      w-full sm:max-w-xl
-                      p-2 pt-3 sm:p-4
-                      rounded-none sm:rounded-2xl
-                      bg-gray-950
-                      border-0 sm:border sm:border-gray-800
-                      shadow-none sm:shadow-2xl
-                      min-h-svh sm:min-h-0">
+      <div className={[
+        'flex flex-col items-center gap-1',
+        'w-full sm:max-w-xl',
+        'p-3 sm:p-4',
+        'rounded-none sm:rounded-2xl',
+        'bg-gray-950',
+        'border-0 sm:border sm:border-gray-800',
+        'shadow-none sm:shadow-2xl',
+        'min-h-svh sm:min-h-0',
+      ].join(' ')}>
 
         {/* Header */}
         <div className="flex items-center justify-between w-full">
