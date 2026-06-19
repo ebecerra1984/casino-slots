@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
+import { Volume2, VolumeX, Info } from 'lucide-react'
 import { useSlotMachine } from '../hooks/useSlotMachine'
 import { useAudio } from '../hooks/useAudio'
 import { Reel } from './Reel'
@@ -99,30 +100,30 @@ export function SlotMachine() {
 
   return (
     <>
-      <div className="flex flex-col items-center gap-2 p-6 rounded-2xl bg-gray-950 border border-gray-800 shadow-2xl w-full max-w-xl">
+      <div className="flex flex-col items-center gap-1 p-4 rounded-2xl bg-gray-950 border border-gray-800 shadow-2xl w-full max-w-xl">
 
         {/* Header */}
-        <div className="flex items-center justify-between w-full mb-2">
-          {/* Mute */}
+        <div className="flex items-center justify-between w-full mb-1">
           <button
             onClick={audio.toggleMute}
             title={audio.muted ? 'Activar sonido' : 'Silenciar'}
-            className="w-8 h-8 rounded-full border border-gray-700 text-gray-400 hover:border-yellow-500 hover:text-yellow-400 transition-colors text-base flex items-center justify-center"
+            className="w-8 h-8 rounded-full border border-gray-700 text-gray-400 hover:border-yellow-500 hover:text-yellow-400 transition-colors flex items-center justify-center"
           >
-            {audio.muted ? '🔇' : '🔊'}
+            {audio.muted
+              ? <VolumeX className="w-4 h-4" />
+              : <Volume2 className="w-4 h-4" />}
           </button>
 
-          <h1 className="text-2xl font-black tracking-widest uppercase text-yellow-400">
+          <h1 className="text-xl font-black tracking-widest uppercase text-yellow-400">
             🎰 Slots
           </h1>
 
-          {/* Info */}
           <button
             onClick={() => setShowInfo(true)}
-            className="w-8 h-8 rounded-full border border-gray-700 text-gray-400 hover:border-yellow-500 hover:text-yellow-400 transition-colors text-sm font-bold flex items-center justify-center"
+            className="w-8 h-8 rounded-full border border-gray-700 text-gray-400 hover:border-yellow-500 hover:text-yellow-400 transition-colors flex items-center justify-center"
             title="Tabla de pagos"
           >
-            i
+            <Info className="w-4 h-4" />
           </button>
         </div>
 
@@ -151,7 +152,7 @@ export function SlotMachine() {
         </div>
 
         {/* Resultado */}
-        <div className="h-20 flex items-center justify-center">
+        <div className="h-12 flex items-center justify-center">
           {error ? (
             <p className="text-red-400 text-sm">{error}</p>
           ) : (
