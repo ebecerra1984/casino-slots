@@ -34,7 +34,7 @@ export function SlotMachine() {
     prevSpinRef.current = spinning
 
     if (spinning && !wasSpinning) {
-      audio.playSpin()
+      audio.playSpin(quickSpin)
     } else if (!spinning && wasSpinning) {
       audio.stopSpin()
       if (lastResult) {

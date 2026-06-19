@@ -48,10 +48,30 @@ const BG: { f: number; d: number }[] = [
 
 // ─── hook ─────────────────────────────────────────────────────────────────────
 
+// ─── tick buffer ──────────────────────────────────────────────────────────────
+// Un período = 1/15 s (66.7 ms). Los primeros 22 ms son el "click" (ruido con
+// decay exponencial); el resto es silencio. Al hacer loop suena como trinquete.
+
+function makeTickBuf(ctx: AudioContext): AudioBuffer {
+  const rate      = ctx.sampleRate
+  const period    = Math.floor(rate / 15)      // 15 ticks/seg (velocidad normal)
+  const clickLen  = Math.floor(rate * 0.022)   // 22 ms de click
+  const buf       = ctx.createBuffer(1, period, rate)
+  const d         = buf.getChannelData(0)
+  for (let i = 0; i < clickLen; i++) {
+    const t = i / rate
+    // impulso de ruido con decay exponencial muy rápido → sonido de "tac"
+    d[i] = (Math.random() * 2 - 1) * Math.exp(-t * 200)
+  }
+  // el resto del período queda en 0 (silencio entre clicks)
+  return buf
+}
+
 export function useAudio() {
   const ctxRef       = useRef<AudioContext | null>(null)
   const masterRef    = useRef<GainNode | null>(null)
   const noiseRef     = useRef<AudioBuffer | null>(null)
+  const tickBufRef   = useRef<AudioBuffer | null>(null)   // buffer de tick en loop
   const spinRef      = useRef<{ src: AudioBufferSourceNode; g: GainNode } | null>(null)
   const bgTimerRef   = useRef<number | null>(null)
   const bgNextRef    = useRef(0)
@@ -133,54 +153,75 @@ export function useAudio() {
     if (next) stopBg(); else if (ready.current) startBg()
   }, [])
 
-  /** Continuous reel whir — call when spin starts */
-  const playSpin = useCallback(() => {
+  /**
+   * Tick mecánico en loop — llaman cuando arrancan los rodillos.
+   * fast=true duplica la velocidad para quick-spin.
+   */
+  const playSpin = useCallback((fast = false) => {
     if (mutedRef.current) return
     const c = ctx(); const d = dest()
-    const src = c.createBufferSource()
-    src.buffer = noise(30); src.loop = true
 
+    // Buffer de tick (creado una sola vez)
+    if (!tickBufRef.current) tickBufRef.current = makeTickBuf(c)
+
+    const src = c.createBufferSource()
+    src.buffer = tickBufRef.current
+    src.loop   = true
+    // fast: 1.8× → ~27 ticks/s · normal: 1× → 15 ticks/s
+    src.playbackRate.value = fast ? 1.8 : 1.0
+
+    // Filtro lowpass: quita el brillo excesivo, deja el golpe seco
     const filt = c.createBiquadFilter()
-    filt.type = 'bandpass'
-    filt.frequency.setValueAtTime(140, c.currentTime)
-    filt.frequency.linearRampToValueAtTime(280, c.currentTime + 0.4)
-    filt.Q.value = 1.8
+    filt.type = 'lowpass'
+    filt.frequency.value = 900
 
     const g = c.createGain()
     g.gain.setValueAtTime(0, c.currentTime)
-    g.gain.linearRampToValueAtTime(0.22, c.currentTime + 0.12)
+    g.gain.linearRampToValueAtTime(0.55, c.currentTime + 0.08)
 
     src.connect(filt); filt.connect(g); g.connect(d)
     src.start()
     spinRef.current = { src, g }
   }, [])
 
-  /** Stop reel whir — call when all reels stopped */
+  /** Detiene el tick — llaman cuando para el último rodillo */
   const stopSpin = useCallback(() => {
     if (!spinRef.current) return
     const c = ctx()
     const { src, g } = spinRef.current
-    g.gain.linearRampToValueAtTime(0, c.currentTime + 0.14)
-    src.stop(c.currentTime + 0.18)
+    g.gain.linearRampToValueAtTime(0, c.currentTime + 0.1)
+    src.stop(c.currentTime + 0.12)
     spinRef.current = null
   }, [])
 
-  /** Mechanical thud — call for each individual reel stop */
+  /**
+   * Clunk de enclavamiento — cada rodillo al detenerse.
+   * Más grave y largo que el tick de giro: parece que el rodillo "cae" en su posición.
+   */
   const playReelStop = useCallback(() => {
     if (mutedRef.current) return
     const c = ctx(); const d = dest()
-    const src = c.createBufferSource()
-    src.buffer = noise(0.15)
+    const t = c.currentTime
 
-    const filt = c.createBiquadFilter()
-    filt.type = 'lowpass'; filt.frequency.value = 320
+    // Cuerpo principal: ruido grave (lowpass 220 Hz)
+    const body = c.createBufferSource()
+    body.buffer = noise(0.18)
+    const fBody = c.createBiquadFilter(); fBody.type = 'lowpass'; fBody.frequency.value = 220
+    const gBody = c.createGain()
+    gBody.gain.setValueAtTime(0.7, t)
+    gBody.gain.exponentialRampToValueAtTime(0.0001, t + 0.14)
+    body.connect(fBody); fBody.connect(gBody); gBody.connect(d)
+    body.start(t); body.stop(t + 0.18)
 
-    const g = c.createGain(); const t = c.currentTime
-    g.gain.setValueAtTime(0.45, t)
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1)
-
-    src.connect(filt); filt.connect(g); g.connect(d)
-    src.start(); src.stop(t + 0.15)
+    // Transiente agudo corto (ataque inicial): da el "tac" nítido
+    const snap = c.createBufferSource()
+    snap.buffer = noise(0.03)
+    const fSnap = c.createBiquadFilter(); fSnap.type = 'bandpass'; fSnap.frequency.value = 1200; fSnap.Q.value = 2
+    const gSnap = c.createGain()
+    gSnap.gain.setValueAtTime(0.4, t)
+    gSnap.gain.exponentialRampToValueAtTime(0.0001, t + 0.025)
+    snap.connect(fSnap); fSnap.connect(gSnap); gSnap.connect(d)
+    snap.start(t); snap.stop(t + 0.03)
   }, [])
 
   /**
