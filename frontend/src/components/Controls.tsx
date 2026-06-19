@@ -23,7 +23,8 @@ export function Controls({
   onBetChange, onSpin, onStartAutoSpin, onStopAutoSpin, onToggleQuickSpin,
 }: Props) {
   const isAutoSpinning = autoSpinsLeft > 0
-  const canSpin        = !spinning && (balance >= bet || freeSpinsLeft > 0)
+  const totalBet       = bet * 5
+  const canSpin        = !spinning && (balance >= totalBet || freeSpinsLeft > 0)
 
   return (
     <div className="flex flex-col items-center gap-3 w-full pt-2">
@@ -43,8 +44,8 @@ export function Controls({
         )}
 
         <div className="text-center">
-          <p className="text-gray-500 uppercase tracking-widest text-[10px]">Apuesta</p>
-          <p className="text-white font-bold text-base tabular-nums">{bet.toFixed(2)}</p>
+          <p className="text-gray-500 uppercase tracking-widest text-[10px]">Apuesta total</p>
+          <p className="text-white font-bold text-base tabular-nums">{totalBet.toFixed(2)}</p>
         </div>
       </div>
 

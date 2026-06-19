@@ -56,7 +56,7 @@ export function useSlotMachine() {
 
     const isFree = state.freeSpinsLeft > 0
 
-    if (!isFree && state.balance < state.bet) {
+    if (!isFree && state.balance < state.bet * state.lines) {
       // Sin saldo: cancelar auto-spin si estaba activo
       autoSpinsRef.current = 0
       setState(s => ({ ...s, autoSpinsLeft: 0 }))
@@ -72,7 +72,7 @@ export function useSlotMachine() {
       stoppedCols: 0,
       lastResult: null,
       error: null,
-      balance: isFree ? s.balance : s.balance - s.bet,
+      balance: isFree ? s.balance : s.balance - s.bet * s.lines,
       freeSpinsLeft: isFree ? s.freeSpinsLeft - 1 : s.freeSpinsLeft,
     }))
 
@@ -83,7 +83,7 @@ export function useSlotMachine() {
       const res = await fetch('/api/v1/spin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bet: state.bet / state.lines, lines: state.lines }),
+        body: JSON.stringify({ bet: state.bet, lines: state.lines }),
       })
       if (!res.ok) throw new Error('Error en el servidor')
       const data: SpinResponse = await res.json()
@@ -141,7 +141,7 @@ export function useSlotMachine() {
         spinning: false,
         stoppedCols: COLS,
         autoSpinsLeft: 0,
-        balance: isFree ? s.balance : s.balance + s.bet,
+        balance: isFree ? s.balance : s.balance + s.bet * s.lines,
         error: e instanceof Error ? e.message : 'Error desconocido',
       }))
     }
