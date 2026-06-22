@@ -1,25 +1,19 @@
 """
-Evaluador de ganancias sobre la matriz 3×5.
-
-Reglas:
-- Matches de izquierda a derecha, consecutivos desde el rodillo 0.
-- Sin WILD — cada símbolo matchea solo consigo mismo.
-- SCATTER paga en cualquier posición (no necesita payline).
-- Premio total = suma de paylines ganadoras + scatter.
+Evaluador genérico — opera sobre strings, sin dependencia de Symbol enum.
+Recibe un GameConfig que define paytable, paylines y scatter.
 """
 import numpy as np
 from dataclasses import dataclass, field
 
-from .symbols import Symbol, PAYTABLE, SCATTER_PAYS, SCATTER_FREE_SPINS
-from .paylines import PAYLINES, extract_line
+from .config import GameConfig
 
 
 @dataclass
 class LineResult:
     line_id: int
-    symbols: list[Symbol]
+    symbols: list[str]
     match_count: int
-    matched_symbol: Symbol
+    matched_symbol: str
     multiplier: int
     prize: float
 
@@ -36,33 +30,36 @@ class SpinResult:
     total_prize: float = 0.0
 
 
-def _count_matches(symbols: list[Symbol]) -> tuple[Symbol | None, int]:
-    """Cuenta matches consecutivos desde la izquierda. SCATTER no forma payline."""
+def _count_matches(symbols: list[str], scatter: str | None) -> tuple[str | None, int]:
+    """Matches consecutivos desde la izquierda; scatter no inicia payline."""
     first = symbols[0]
-    if first is Symbol.SCATTER:
+    if first == scatter:
         return None, 0
-
     count = 1
     for s in symbols[1:]:
-        if s is first:
+        if s == first:
             count += 1
         else:
             break
-
     return first, count
 
 
-def evaluate_spin(matrix: np.ndarray, bet: float, lines_played: int) -> SpinResult:
-    # bet = apuesta POR LÍNEA; el costo total del spin es bet * lines_played
+def evaluate_spin(
+    matrix: np.ndarray,
+    bet: float,
+    lines_played: int,
+    config: GameConfig,
+) -> SpinResult:
     result = SpinResult(matrix=matrix, bet=bet, lines_played=lines_played)
     total_bet = bet * lines_played
 
     for line_id in range(1, lines_played + 1):
-        symbols = extract_line(matrix, PAYLINES[line_id])
-        base_symbol, count = _count_matches(symbols)
+        coords = config.paylines[line_id]
+        symbols = [str(matrix[r, c]) for r, c in coords]
+        base_symbol, count = _count_matches(symbols, config.scatter_symbol)
 
         if count >= 3 and base_symbol is not None:
-            multiplier = PAYTABLE.get(base_symbol, {}).get(count, 0)
+            multiplier = config.paytable.get(base_symbol, {}).get(count, 0)
             if multiplier > 0:
                 result.line_results.append(LineResult(
                     line_id=line_id,
@@ -70,16 +67,15 @@ def evaluate_spin(matrix: np.ndarray, bet: float, lines_played: int) -> SpinResu
                     match_count=count,
                     matched_symbol=base_symbol,
                     multiplier=multiplier,
-                    prize=bet * multiplier,   # bet por línea × multiplicador
+                    prize=bet * multiplier,
                 ))
 
-    # Scatter: paga sobre la apuesta total del spin
-    scatter_count = sum(1 for s in matrix.flatten() if s is Symbol.SCATTER)
-    result.scatter_count = scatter_count
-
-    if scatter_count >= 3:
-        result.scatter_prize = total_bet * SCATTER_PAYS.get(scatter_count, 0)
-        result.scatter_free_spins = SCATTER_FREE_SPINS.get(scatter_count, 0)
+    if config.scatter_symbol:
+        scatter_count = int(np.sum(matrix == config.scatter_symbol))
+        result.scatter_count = scatter_count
+        if scatter_count >= 3:
+            result.scatter_prize = total_bet * config.scatter_pays.get(scatter_count, 0)
+            result.scatter_free_spins = config.scatter_free_spins.get(scatter_count, 0)
 
     result.total_prize = sum(lr.prize for lr in result.line_results) + result.scatter_prize
     return result

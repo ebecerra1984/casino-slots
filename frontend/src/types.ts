@@ -19,4 +19,15 @@ export interface SpinResponse {
   scatter_free_spins: number
   total_prize: number
   is_win: boolean
+  balance?: number  // saldo post-spin; presente solo en modo sesión
+}
+
+export interface SessionData {
+  session_token: string
+  player_id: string
+  balance: number
+  currency: string
+  game_id: string
+  status: 'active' | 'closed' | 'expired'
+  expires_at: string
 }

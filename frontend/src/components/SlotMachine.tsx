@@ -1,29 +1,48 @@
-import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
-import { Volume2, VolumeX, Info } from 'lucide-react'
-import { useSlotMachine } from '../hooks/useSlotMachine'
-import { useAudio } from '../hooks/useAudio'
-import { Reel } from './Reel'
-import { PaylineIndicator } from './PaylineIndicator'
-import { PaylineOverlay } from './PaylineOverlay'
-import { Controls } from './Controls'
-import { WinDisplay } from './WinDisplay'
-import { PaytableModal } from './PaytableModal'
-import type { SymbolId } from '../types'
+import { useMemo, useState, useEffect, useRef, useCallback } from "react"
+import { Volume2, VolumeX, Info } from "lucide-react"
+import { useSlotMachine } from "../hooks/useSlotMachine"
+import { useAudio } from "../hooks/useAudio"
+import { Reel } from "./Reel"
+import { PaylineIndicator } from "./PaylineIndicator"
+import { PaylineOverlay } from "./PaylineOverlay"
+import { Controls } from "./Controls"
+import { WinDisplay } from "./WinDisplay"
+import { PaytableModal } from "./PaytableModal"
+import type { SessionData, SymbolId } from "../types"
 
 const PAYLINE_ROWS: Record<number, number[]> = {
   1: [1, 1, 1, 1, 1],
   2: [0, 0, 0, 0, 0],
   3: [2, 2, 2, 2, 2],
   4: [0, 1, 2, 1, 0],
-  5: [2, 1, 0, 1, 2],
+  5: [2, 1, 0, 1, 2]
 }
 
 const COLS = 5
 
-export function SlotMachine() {
-  const { state, spin, setBet, startAutoSpin, stopAutoSpin, toggleQuickSpin } = useSlotMachine()
-  const { matrix, spinning, stoppedCols, lastResult, bet, balance, lines,
-          freeSpinsLeft, autoSpinsLeft, quickSpin, error } = state
+interface Props {
+  session: SessionData | null
+}
+
+export function SlotMachine({ session }: Props) {
+  const { state, spin, setBet, startAutoSpin, stopAutoSpin, toggleQuickSpin } =
+    useSlotMachine({
+      initialBalance: session?.balance,
+      sessionToken: session?.session_token
+    })
+  const {
+    matrix,
+    spinning,
+    stoppedCols,
+    lastResult,
+    bet,
+    balance,
+    lines,
+    freeSpinsLeft,
+    autoSpinsLeft,
+    quickSpin,
+    error
+  } = state
   const [showInfo, setShowInfo] = useState(false)
 
   const audio = useAudio()
@@ -66,61 +85,75 @@ export function SlotMachine() {
     spin()
   }, [spin, audio.initAudio])
 
-  const handleStartAutoSpin = useCallback((n: number) => {
-    audio.initAudio()
-    startAutoSpin(n)
-  }, [startAutoSpin, audio.initAudio])
+  const handleStartAutoSpin = useCallback(
+    (n: number) => {
+      audio.initAudio()
+      startAutoSpin(n)
+    },
+    [startAutoSpin, audio.initAudio]
+  )
 
   // ── cálculo de celdas ganadoras ──
   const { winRowsByCol, scatterRowsByCol, winLineIds } = useMemo(() => {
-    const winRowsByCol: Set<number>[]     = Array.from({ length: 5 }, () => new Set<number>())
-    const scatterRowsByCol: Set<number>[] = Array.from({ length: 5 }, () => new Set<number>())
+    const winRowsByCol: Set<number>[] = Array.from(
+      { length: 5 },
+      () => new Set<number>()
+    )
+    const scatterRowsByCol: Set<number>[] = Array.from(
+      { length: 5 },
+      () => new Set<number>()
+    )
     const winLineIds = new Set<number>()
 
-    if (!lastResult || !matrix) return { winRowsByCol, scatterRowsByCol, winLineIds }
+    if (!lastResult || !matrix)
+      return { winRowsByCol, scatterRowsByCol, winLineIds }
 
     for (const lr of lastResult.line_results) {
       winLineIds.add(lr.line_id)
       const rows = PAYLINE_ROWS[lr.line_id]
-      for (let col = 0; col < lr.match_count; col++) winRowsByCol[col].add(rows[col])
+      for (let col = 0; col < lr.match_count; col++)
+        winRowsByCol[col].add(rows[col])
     }
 
     for (let row = 0; row < 3; row++)
       for (let col = 0; col < 5; col++)
-        if (matrix[row][col] === 'SCATTER') scatterRowsByCol[col].add(row)
+        if (matrix[row][col] === "SCATTER") scatterRowsByCol[col].add(row)
 
     return { winRowsByCol, scatterRowsByCol, winLineIds }
   }, [lastResult, matrix])
 
   const displayMatrix: SymbolId[][] = matrix ?? [
-    ['CHERRY', 'LEMON', 'ORANGE', 'GRAPE', 'BELL'],
-    ['LEMON',  'ORANGE', 'GRAPE', 'BELL', 'CHERRY'],
-    ['ORANGE', 'GRAPE', 'BELL', 'CHERRY', 'LEMON'],
+    ["CHERRY", "LEMON", "ORANGE", "GRAPE", "BELL"],
+    ["LEMON", "ORANGE", "GRAPE", "BELL", "CHERRY"],
+    ["ORANGE", "GRAPE", "BELL", "CHERRY", "LEMON"]
   ]
 
   return (
     <>
-      <div className={[
-        'flex flex-col items-center gap-1',
-        'w-full sm:max-w-xl',
-        'p-3 sm:p-4',
-        'rounded-none sm:rounded-2xl',
-        'bg-gray-950',
-        'border-0 sm:border sm:border-gray-800',
-        'shadow-none sm:shadow-2xl',
-        'min-h-svh sm:min-h-0',
-      ].join(' ')}>
-
+      <div
+        className={[
+          "flex flex-col items-center gap-1",
+          "w-full sm:max-w-xl",
+          "p-3 sm:p-4",
+          "rounded-none sm:rounded-2xl",
+          "bg-gray-950",
+          "border-0 sm:border sm:border-gray-800",
+          "shadow-none sm:shadow-2xl",
+          "min-h-svh sm:min-h-0"
+        ].join(" ")}
+      >
         {/* Header */}
         <div className="flex items-center justify-between w-full">
           <button
             onClick={audio.toggleMute}
-            title={audio.muted ? 'Activar sonido' : 'Silenciar'}
+            title={audio.muted ? "Activar sonido" : "Silenciar"}
             className="w-8 h-8 rounded-full border border-gray-700 text-gray-400 hover:border-yellow-500 hover:text-yellow-400 transition-colors flex items-center justify-center"
           >
-            {audio.muted
-              ? <VolumeX className="w-4 h-4" />
-              : <Volume2 className="w-4 h-4" />}
+            {audio.muted ? (
+              <VolumeX className="w-4 h-4" />
+            ) : (
+              <Volume2 className="w-4 h-4" />
+            )}
           </button>
 
           <h1 className="text-xl font-black tracking-widest uppercase text-yellow-400">
@@ -147,7 +180,11 @@ export function SlotMachine() {
             {Array.from({ length: COLS }, (_, col) => (
               <Reel
                 key={col}
-                symbols={[displayMatrix[0][col], displayMatrix[1][col], displayMatrix[2][col]]}
+                symbols={[
+                  displayMatrix[0][col],
+                  displayMatrix[1][col],
+                  displayMatrix[2][col]
+                ]}
                 isSpinning={spinning && col >= stoppedCols}
                 quickSpin={quickSpin}
                 winRows={winRowsByCol[col]}
@@ -166,14 +203,23 @@ export function SlotMachine() {
 
         {/* Indicador de líneas compacto — solo mobile */}
         <div className="flex sm:hidden items-center justify-center gap-4 w-full py-0.5">
-          {[1, 2, 3, 4, 5].map(id => {
-            const colors: Record<number, string> = { 1:'#facc15', 2:'#34d399', 3:'#f472b6', 4:'#60a5fa', 5:'#fb923c' }
+          {[1, 2, 3, 4, 5].map((id) => {
+            const colors: Record<number, string> = {
+              1: "#facc15",
+              2: "#34d399",
+              3: "#f472b6",
+              4: "#60a5fa",
+              5: "#fb923c"
+            }
             const won = winLineIds.has(id)
             return (
               <span
                 key={id}
                 style={{ color: colors[id] }}
-                className={['text-[11px] font-black', won ? 'animate-pulse' : 'opacity-40'].join(' ')}
+                className={[
+                  "text-[11px] font-black",
+                  won ? "animate-pulse" : "opacity-40"
+                ].join(" ")}
               >
                 {id}
               </span>
@@ -184,9 +230,11 @@ export function SlotMachine() {
         {/* Resultado — sin altura fija para que colapse cuando no hay nada */}
         {(error || lastResult?.is_win) && (
           <div className="flex items-center justify-center w-full">
-            {error
-              ? <p className="text-red-400 text-sm py-1">{error}</p>
-              : <WinDisplay result={lastResult} />}
+            {error ? (
+              <p className="text-red-400 text-sm py-1">{error}</p>
+            ) : (
+              <WinDisplay result={lastResult} />
+            )}
           </div>
         )}
 

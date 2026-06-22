@@ -2,23 +2,31 @@
 
 ## Qué es este proyecto
 Motor matemático + interfaz React para una tragamonedas virtual embebible como iframe.
-El casino cliente embebe `frontend/dist/index.html` en su sitio; la API es interna.
+Sistema multi-tenant: cada casino es un cliente con su API key, ses sesiones, y webhook propio.
 
 ## Arquitectura
 
 ```
 casino-slots/
-├── backend/          Python 3.13 · FastAPI · numpy · pandas
+├── backend/          Python 3.13 · FastAPI · SQLAlchemy · numpy
 │   ├── engine/       Lógica matemática pura (reels, evaluator, paylines, symbols)
-│   ├── api/          Routes + Pydantic models
-│   ├── main.py       Entry point FastAPI + CORS
-│   ├── simulate_rtp.py  Script de calibración RTP (CLI)
+│   ├── api/
+│   │   ├── routes.py     POST /spin · GET /config
+│   │   ├── sessions.py   POST/GET /sessions · POST /sessions/{t}/close
+│   │   └── models.py     SpinRequest / SpinResponse (Pydantic)
+│   ├── services/
+│   │   └── webhook.py    Fire-and-forget webhook via httpx
+│   ├── database.py       SQLAlchemy engine + get_db dep
+│   ├── db_models.py      ORM: Casino, GameSession, SpinRecord
+│   ├── main.py           FastAPI app + lifespan (create_all)
+│   ├── seed_casino.py    CLI para crear casinos
+│   ├── simulate_rtp.py   Script de calibración RTP (CLI)
 │   └── requirements.txt
 └── frontend/         React 18 + Vite + Tailwind CSS v4 · lucide-react
     └── src/
-        ├── components/   SlotMachine, Reel, Controls, PaylineOverlay, PaytableModal…
-        ├── hooks/        useSlotMachine.ts, useAudio.ts
-        └── types.ts
+        ├── components/   SlotMachine(session), SessionGate, Reel, Controls…
+        ├── hooks/        useSlotMachine(opts), useSession, useAudio
+        └── types.ts      SessionData, SpinResponse (con balance?)
 ```
 
 ## Cómo arrancar en desarrollo
@@ -140,5 +148,99 @@ Para verificar padding: medir con `page.evaluate(() => getComputedStyle(el).padd
 ## Package manager
 Frontend: **yarn** (no npm). Siempre `yarn add`, `yarn dev`, `yarn build`.
 
+### Multi-tenant — sesiones (Fase 1)
+
+**Flujo de integración para un casino:**
+
+```text
+Casino backend → POST /api/v1/sessions
+  Headers: X-API-Key: cs_live_XXXX
+  Body: { player_id, balance, currency, game_id, expires_in_seconds }
+  → { session_token, balance, currency, ... }
+
+Casino → <iframe src="https://slots.example.com/?session=TOKEN">
+
+Frontend → GET /api/v1/sessions/TOKEN (en mount, via useSession)
+         → SpinRequest incluye session_token + is_free_spin
+         → SpinResponse incluye balance autorizado por servidor
+
+Casino backend → POST /api/v1/sessions/{token}/close  (al cierre)
+  → { final_balance, status: "closed" }
+```
+
+**Crear un casino:**
+
+```bash
+cd backend && python3 seed_casino.py --name "MiCasino" --callback-url "https://mi.casino/webhook"
+# → API Key: cs_live_XXXX  (guardar: no recuperable)
+```
+
+**Webhook por spin** (si callback_url está configurada):
+
+```json
+{ "event": "spin_completed", "session_token": "...", "player_id": "...",
+  "spin": { "bet", "lines", "total_bet", "total_prize", "is_win" },
+  "balance": { "before", "after", "currency" } }
+```
+
+**Modo desarrollo (sin token):**
+
+- Si la URL no tiene `?session=TOKEN`, el frontend usa balance local (1000 créditos)
+- El backend acepta spins sin session_token mientras `DEV_MODE=true` (default)
+- El campo `balance` en `SpinResponse` es `null` en modo dev
+
+**Tablas SQLite (dev) / PostgreSQL (prod):**
+
+- `casinos`: id, name, api_key, callback_url, active
+- `game_sessions`: token (PK), casino_id, player_id, balance, currency, status, expires_at
+- `spin_records`: id, session_token, bet, lines, total_bet, total_prize, balance_before/after, is_win
+
+### Motor matemático genérico — GameConfig (Fase 2)
+
+El engine ya NO tiene paytable hardcodeada. Todo se lee de la tabla `games` (SQLite/PG).
+
+**`engine/config.py`** — `GameConfig` (Pydantic):
+
+- `reels: list[list[str]]` — 5 tiras de símbolos (strings, no enum)
+- `paylines: dict[int, list[list[int]]]` — {line_id: [[row,col],...]}
+- `paytable: dict[str, dict[int, int]]` — {símbolo: {n_matches: multiplicador}}
+- `scatter_symbol`, `scatter_pays`, `scatter_free_spins`, `scatter_max_per_reel`
+
+**Juegos seedeados** (`seed_game.py --force` para actualizar):
+
+| ID              | Nombre                   | RTP    | Hit rate | Varianza |
+| --------------- | ------------------------ | ------ | -------- | -------- |
+| `slots-classic` | Slots Clásico            | ~92%   | 8.1%     | std=122  |
+| `slots-high-vol`| Slots Alta Volatilidad   | ~94.7% | 8.1%     | std=134  |
+
+`slots-high-vol` usa las mismas tiras que classic pero premiums ×4/×5 más altos.
+
+**Rutas nuevas:**
+
+- `GET /api/v1/games` — lista juegos (público)
+- `GET /api/v1/games/{id}/config` — config completa (público)
+- `POST /api/v1/games` — crear juego (requiere X-API-Key)
+- `PUT /api/v1/games/{id}` — actualizar juego; invalida cache en memoria
+
+**Cache de configs:** `_config_cache` en `api/routes.py` (dict en memoria, se limpia al reiniciar).
+
+**simulate_rtp.py** acepta ahora `game_id` como primer argumento:
+
+```bash
+python3 simulate_rtp.py slots-classic 1000000
+python3 simulate_rtp.py slots-high-vol 500000
+```
+
+**Arranque completo desde cero:**
+
+```bash
+cd backend
+python3 seed_game.py        # crea juegos + Casino Demo
+python3 seed_casino.py --name "OtroCasino"  # casinos adicionales
+uvicorn main:app --reload
+```
+
 ## Pendientes / ideas anotadas
+
 - Build de producción + dockerización para despliegue del cliente
+- Frontend: modal de paytable debería consumir `GET /api/v1/games/{game_id}/config` en vez de datos hardcodeados

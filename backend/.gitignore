@@ -27,3 +27,6 @@ htmlcov/
 # Type checking
 .mypy_cache/
 .pyright/
+
+# Mock DB
+.db

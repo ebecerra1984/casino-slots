@@ -1,10 +1,10 @@
 import { useState, useCallback, useRef } from 'react'
 import type { SpinResponse, SymbolId } from '../types'
 
-const INITIAL_BALANCE = 1000
+const DEV_BALANCE = 1000
 
-const REEL_BASE_MS  = 1400
-const REEL_STEP_MS  = 300
+const REEL_BASE_MS    = 1400
+const REEL_STEP_MS    = 300
 const REEL_BASE_QUICK = 450
 const REEL_STEP_QUICK = 80
 const COLS = 5
@@ -29,9 +29,17 @@ export interface GameState {
   error: string | null
 }
 
-export function useSlotMachine() {
+interface Opts {
+  initialBalance?: number
+  sessionToken?: string | null
+}
+
+export function useSlotMachine(opts?: Opts) {
+  const sessionToken   = opts?.sessionToken ?? null
+  const initialBalance = opts?.initialBalance ?? DEV_BALANCE
+
   const [state, setState] = useState<GameState>({
-    balance: INITIAL_BALANCE,
+    balance: initialBalance,
     bet: 3,
     lines: 5,
     matrix: IDLE_MATRIX,
@@ -44,12 +52,12 @@ export function useSlotMachine() {
     error: null,
   })
 
-  const pendingResult  = useRef<SpinResponse | null>(null)
-  const timers         = useRef<ReturnType<typeof setTimeout>[]>([])
+  const pendingResult = useRef<SpinResponse | null>(null)
+  const timers        = useRef<ReturnType<typeof setTimeout>[]>([])
   // Refs para evitar stale closures en los timers
-  const autoSpinsRef   = useRef(0)
-  const quickSpinRef   = useRef(false)
-  const spinRef        = useRef<() => void>(() => {})
+  const autoSpinsRef  = useRef(0)
+  const quickSpinRef  = useRef(false)
+  const spinRef       = useRef<() => void>(() => {})
 
   const spin = useCallback(async () => {
     if (state.spinning) return
@@ -57,7 +65,6 @@ export function useSlotMachine() {
     const isFree = state.freeSpinsLeft > 0
 
     if (!isFree && state.balance < state.bet * state.lines) {
-      // Sin saldo: cancelar auto-spin si estaba activo
       autoSpinsRef.current = 0
       setState(s => ({ ...s, autoSpinsLeft: 0 }))
       return
@@ -72,6 +79,7 @@ export function useSlotMachine() {
       stoppedCols: 0,
       lastResult: null,
       error: null,
+      // Descuento optimista; se sobrescribe con el valor del servidor al finalizar
       balance: isFree ? s.balance : s.balance - s.bet * s.lines,
       freeSpinsLeft: isFree ? s.freeSpinsLeft - 1 : s.freeSpinsLeft,
     }))
@@ -83,9 +91,17 @@ export function useSlotMachine() {
       const res = await fetch('/api/v1/spin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bet: state.bet, lines: state.lines }),
+        body: JSON.stringify({
+          session_token: sessionToken ?? undefined,
+          is_free_spin: isFree,
+          bet: state.bet,
+          lines: state.lines,
+        }),
       })
-      if (!res.ok) throw new Error('Error en el servidor')
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Error en el servidor' }))
+        throw new Error(err.detail ?? 'Error en el servidor')
+      }
       const data: SpinResponse = await res.json()
       pendingResult.current = data
 
@@ -115,13 +131,14 @@ export function useSlotMachine() {
               autoSpinsLeft: nextAutoLeft,
               ...(isLast ? {
                 lastResult: result,
-                balance: s.balance + result.total_prize,
+                // Modo sesión: usar balance autorizado por el servidor
+                // Modo dev: calcular desde balance optimista actual
+                balance: result.balance ?? s.balance + result.total_prize,
                 freeSpinsLeft: s.freeSpinsLeft + result.scatter_free_spins,
               } : {}),
             }
           })
 
-          // Encadenar siguiente auto-spin tras la última parada
           if (isLast && autoSpinsRef.current > 0) {
             autoSpinsRef.current -= 1
             setState(s => ({ ...s, autoSpinsLeft: autoSpinsRef.current }))
@@ -141,13 +158,13 @@ export function useSlotMachine() {
         spinning: false,
         stoppedCols: COLS,
         autoSpinsLeft: 0,
+        // Revertir descuento optimista
         balance: isFree ? s.balance : s.balance + s.bet * s.lines,
         error: e instanceof Error ? e.message : 'Error desconocido',
       }))
     }
-  }, [state.spinning, state.balance, state.bet, state.lines, state.freeSpinsLeft])
+  }, [state.spinning, state.balance, state.bet, state.lines, state.freeSpinsLeft, sessionToken])
 
-  // Mantener el ref siempre actualizado
   spinRef.current = spin
 
   const setBet = useCallback((bet: number) => {
