@@ -13,18 +13,21 @@ casino-slots/
 │   ├── api/
 │   │   ├── routes.py     POST /spin · GET /config
 │   │   ├── sessions.py   POST/GET /sessions · POST /sessions/{t}/close
+│   │   ├── games.py      GET/POST /games · PUT /games/{id}
 │   │   └── models.py     SpinRequest / SpinResponse (Pydantic)
 │   ├── services/
 │   │   └── webhook.py    Fire-and-forget webhook via httpx
 │   ├── database.py       SQLAlchemy engine + get_db dep
-│   ├── db_models.py      ORM: Casino, GameSession, SpinRecord
+│   ├── db_models.py      ORM: Casino, GameSession, SpinRecord, Game
 │   ├── main.py           FastAPI app + lifespan (create_all)
 │   ├── seed_casino.py    CLI para crear casinos
 │   ├── simulate_rtp.py   Script de calibración RTP (CLI)
 │   └── requirements.txt
 └── frontend/         React 18 + Vite + Tailwind CSS v4 · lucide-react
     └── src/
-        ├── components/   SlotMachine(session), SessionGate, Reel, Controls…
+        ├── components/   SlotMachine(session)       ← renderer DOM (Tailwind)
+        │                 SlotMachineCanvas(session)  ← renderer canvas (ver sección)
+        │                 SessionGate, Reel, Controls, WinDisplay, PaylineIndicator…
         ├── hooks/        useSlotMachine(opts), useSession, useAudio
         └── types.ts      SessionData, SpinResponse (con balance?)
 ```
@@ -69,8 +72,11 @@ yarn dev
 - Comparaciones con `is Symbol.X` (no `==`) para evitar falsos negativos
 
 ### RTP calibrado
-- ~93% teórico (simulado con 5M tiradas)
-- Comando: `cd backend && python3 simulate_rtp.py 3000000`
+
+- El engine es genérico; el RTP depende del juego (ver tabla en sección GameConfig)
+- Comando: `cd backend && python3 simulate_rtp.py <game_id> <n_spins>`
+  - `python3 simulate_rtp.py slots-classic 3000000`
+  - `python3 simulate_rtp.py slots-high-vol 1000000`
 - El simulador usa `total_bet += BET * LINES` (no solo `BET`)
 
 ### React / animación de rodillos
@@ -146,7 +152,13 @@ Para verificar padding: medir con `page.evaluate(() => getComputedStyle(el).padd
 | `useSlotMachine.ts` | `REEL_BASE_MS` | 1400ms | solo UX |
 
 ## Package manager
+
 Frontend: **yarn** (no npm). Siempre `yarn add`, `yarn dev`, `yarn build`.
+
+## Build de producción
+
+`vite.config.ts` tiene `build.sourcemap: false` — el bundle minificado no expone código fuente.
+El resto de la lógica matemática (paytable, tiras, evaluador) vive en el backend y nunca llega al cliente.
 
 ### Multi-tenant — sesiones (Fase 1)
 
@@ -239,6 +251,53 @@ python3 seed_game.py        # crea juegos + Casino Demo
 python3 seed_casino.py --name "OtroCasino"  # casinos adicionales
 uvicorn main:app --reload
 ```
+
+### Renderer canvas (`SlotMachineCanvas`)
+
+Componente alternativo en `frontend/src/components/SlotMachineCanvas.tsx` que renderiza **toda** la UI del slot (rodillos, controles, balance, botones) en un único `<canvas>` — sin elementos DOM de juego.
+
+**Activación:** `?view=canvas` en la URL del iframe. `App.tsx` lee el param y elige el renderer.
+
+**Decisiones técnicas clave:**
+
+- Canvas lógico: 400×524 px; escalado por `devicePixelRatio` para nitidez en retina
+- `useEffect([], [])` (mount once) — el RAF loop lee todo el state via `stateRef.current`
+- Todos los callbacks (`spin`, `setBet`, etc.) se mantienen frescos via refs (`spinRef.current = spin`) para evitar stale closures dentro del loop
+- Audio: mismos hooks `useAudio` y `useSlotMachine`; side-effects de audio detectados comparando `prevSpinRef` frame a frame dentro del loop (sin `useEffect` adicionales)
+- Hit-testing: coordenadas de click mapeadas a `W / rect.width` para independizarse del zoom CSS
+- Animación de rodillos: pool shuffled de símbolos por columna; `topIdx` decrementa al completar cada `STRIP_H` de scroll; bounce (sin(t·π)·8px) al parar
+- Fade en bordes del clip: `globalAlpha` proporcional a distancia del centro al borde del viewport
+
+**Lo que NO cambia respecto al renderer DOM:**
+
+- `useSlotMachine` (toda la lógica de spin, auto-spin, balance)
+- `useAudio` (síntesis Web Audio API)
+- Backend y sesiones
+
+### Casino Mock (`/Repos/casino-mock/`)
+
+Servicio de prueba separado (Node.js + Express, puerto 3001) que simula un casino cliente.
+
+**Flujo de pantallas:**
+
+```text
+Lobby (player/balance/moneda)
+  → Game select (thumbnails canvas de cada juego)
+    → Game view (iframe con ?view=canvas + panel webhooks)
+```
+
+**Arranque:**
+
+```bash
+cd /Repos/casino-mock
+cp .env.example .env   # completar CASINO_API_KEY
+npm run dev            # puerto 3001
+```
+
+El API key se genera con `python3 seed_casino.py` en el backend de casino-slots.
+El iframe siempre carga `?view=canvas` — el mock testea exclusivamente el renderer canvas.
+
+**Thumbnails:** mini canvas estáticos (5×3 celdas, 36px) dibujados con la misma paleta que el juego real. Classic muestra frutas con highlight en fila central; High-vol muestra 7s con highlight de fila completa.
 
 ## Pendientes / ideas anotadas
 
